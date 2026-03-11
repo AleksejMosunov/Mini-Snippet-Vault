@@ -90,7 +90,7 @@ export class SnippetsService {
     try {
       const snippet = await this.snippetModel
         .findByIdAndUpdate(id, updateSnippetDto, {
-          new: true,
+          returnDocument: 'after',
           runValidators: true,
         })
         .exec();
