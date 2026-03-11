@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ListControls } from '@/components/list-controls';
 import { SnippetCard } from '@/components/snippet-card';
 import { SnippetForm } from '@/components/snippet-form';
@@ -16,64 +16,65 @@ export default function HomePage() {
   const [page, setPage] = useState(1);
   const [q, setQ] = useState('');
   const [tag, setTag] = useState('');
-  const [debouncedQ, setDebouncedQ] = useState('');
-  const [debouncedTag, setDebouncedTag] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setDebouncedQ(q);
-      setDebouncedTag(tag);
-      setPage(1);
-    }, 300);
+    let ignore = false;
 
-    return () => window.clearTimeout(timer);
-  }, [q, tag]);
+    async function loadData() {
+      setIsLoading(true);
+      setError(null);
 
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+      try {
+        const response = await getSnippets({
+          q,
+          tag,
+          page,
+          limit: PAGE_SIZE,
+        });
 
-    try {
-      const response = await getSnippets({
-        q: debouncedQ,
-        tag: debouncedTag,
-        page,
-        limit: PAGE_SIZE,
-      });
-      setItems(response.data);
-      setTotal(response.total);
-    } catch (requestError) {
-      const message =
-        requestError instanceof Error
-          ? requestError.message
-          : 'Failed to load snippets.';
-      setError(message);
-    } finally {
-      setIsLoading(false);
+        if (!ignore) {
+          setItems(response.data);
+          setTotal(response.total);
+        }
+      } catch (requestError) {
+        if (!ignore) {
+          const message =
+            requestError instanceof Error
+              ? requestError.message
+              : 'Failed to load snippets.';
+          setError(message);
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoading(false);
+        }
+      }
     }
-  }, [debouncedQ, debouncedTag, page]);
 
-  useEffect(() => {
     void loadData();
-  }, [loadData]);
 
-  const handleCreate = useCallback(async (payload: SnippetPayload): Promise<void> => {
+    return () => {
+      ignore = true;
+    };
+  }, [q, tag, page, reloadKey]);
+
+  async function handleCreate(payload: SnippetPayload): Promise<void> {
     setIsCreating(true);
 
     try {
       await createSnippet(payload);
-      await loadData();
+      setPage(1);
+      setReloadKey((prev) => prev + 1);
     } finally {
       setIsCreating(false);
     }
-  }, [loadData]);
+  }
 
-  const hasFilters = useMemo(() => {
-    return Boolean(debouncedQ.trim() || debouncedTag.trim());
-  }, [debouncedQ, debouncedTag]);
+  const hasFilters = Boolean(q.trim() || tag.trim());
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-8 md:px-6">
@@ -95,8 +96,14 @@ export default function HomePage() {
             total={total}
             limit={PAGE_SIZE}
             isLoading={isLoading}
-            onSearchChange={setQ}
-            onTagChange={setTag}
+            onSearchChange={(value) => {
+              setQ(value);
+              setPage(1);
+            }}
+            onTagChange={(value) => {
+              setTag(value);
+              setPage(1);
+            }}
             onNextPage={() => setPage((prev) => prev + 1)}
             onPrevPage={() => setPage((prev) => Math.max(1, prev - 1))}
           />
@@ -107,7 +114,7 @@ export default function HomePage() {
               <p className="mt-1 text-sm">{error}</p>
               <button
                 type="button"
-                onClick={() => void loadData()}
+                onClick={() => setReloadKey((prev) => prev + 1)}
                 className="mt-3 rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-rose-700"
               >
                 Retry

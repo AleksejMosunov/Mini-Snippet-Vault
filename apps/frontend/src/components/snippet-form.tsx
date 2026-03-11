@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import type { Snippet, SnippetPayload, SnippetType } from '@/lib/types';
 
 type SnippetFormProps = {
@@ -62,9 +62,7 @@ export function SnippetForm({
   const [errors, setErrors] = useState<FormErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
 
-  const titleText = useMemo(() => {
-    return mode === 'create' ? 'Create New Snippet' : 'Edit Snippet';
-  }, [mode]);
+  const titleText = mode === 'create' ? 'Create New Snippet' : 'Edit Snippet';
 
   function validate(next: FormValues): FormErrors {
     const nextErrors: FormErrors = {};

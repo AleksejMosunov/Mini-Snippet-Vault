@@ -1,15 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { SnippetForm } from '@/components/snippet-form';
 import { deleteSnippet, getSnippet, updateSnippet } from '@/lib/api';
 import type { Snippet, SnippetPayload } from '@/lib/types';
-
-type SnippetDetailPageProps = {
-  params: Promise<{ id: string; }>;
-};
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleString('en-US', {
@@ -18,31 +14,15 @@ function formatDate(value: string): string {
   });
 }
 
-export default function SnippetDetailPage({ params }: SnippetDetailPageProps) {
+export default function SnippetDetailPage() {
   const router = useRouter();
-  const [id, setId] = useState<string>('');
+  const params = useParams<{ id: string; }>();
+  const id = params?.id ?? '';
   const [snippet, setSnippet] = useState<Snippet | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function resolveParams() {
-      const resolved = await params;
-      if (mounted) {
-        setId(resolved.id);
-      }
-    }
-
-    void resolveParams();
-
-    return () => {
-      mounted = false;
-    };
-  }, [params]);
 
   useEffect(() => {
     if (!id) {
